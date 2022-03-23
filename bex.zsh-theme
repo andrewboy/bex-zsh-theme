@@ -4,6 +4,9 @@ local LAMBDA="%(?,%{$fg_bold[green]%}λ,%{$fg_bold[red]%}λ)"
 local STATUS_COLOR="%(?,%{$fg_bold[green]%},%{$fg_bold[red]%})"
 if [[ "$USER" == "root" ]]; then USERCOLOR="red"; else USERCOLOR="yellow"; fi
 export ZSH_COMMAND_TIME="00:00:00"
+# local promptsize=${#${(%):---(%n)-at-(%m)-in-()-}}
+# local pwdsize=${#${(%):-%~}}
+# local gitsize=${#${(%)$(git_prompt_status)}}
 
 _command_time_preexec() {
   timer=${timer:-$SECONDS}
@@ -21,6 +24,23 @@ _command_time_precmd() {
   fi
 }
 
+function theme_precmd {
+  # TERMWIDTH=$(( COLUMNS - ${ZLE_RPROMPT_INDENT:-1} ))
+  # gitsize=${#${(%)$(check_git_prompt_info)}}
+  pwdsize=${#${(%):-%~}}
+  promptsize=${#${(%):---%n-at-%m-in---%?-($ZSH_COMMAND_TIME)-<-%*-}}
+}
+
+# function theme_preexec {
+#   setopt local_options extended_glob
+#   # if [[ "$TERM" = "screen" ]]; then
+#   local CMD=${1[(wr)^(*=*|sudo|-*)]}
+#   echo -n "\ek$CMD\e\\"
+#   # fi
+# }
+
+################################################################################
+
 # Git sometimes goes into a detached head state. git_prompt_info doesn't
 # return anything in this case. So wrap it in another function and check
 # for an empty string.
@@ -34,25 +54,42 @@ function check_git_prompt_info() {
     fi
 }
 
-function get_right_prompt() {
-    #if git rev-parse --git-dir > /dev/null 2>&1; then
-    #    echo -n "$(git_prompt_short_sha)%{$reset_color%}"
-    #else
-    #    echo -n "%{$reset_color%}"
-    #fi
-    echo "{235%}%*{$reset_color%}"
-}
+# function get_right_prompt() {
+#     #if git rev-parse --git-dir > /dev/null 2>&1; then
+#     #    echo -n "$(git_prompt_short_sha)%{$reset_color%}"
+#     #else
+#     #    echo -n "%{$reset_color%}"
+#     #fi
+#     echo "{235%}%*{$reset_color%}"
+# }
 
 function get_dir() {
     echo "%F{118%}%~%{$reset_color%}"
 }
 
+TRAPWINCH () {
+  BAR=$(printf '=%.0s' {1..$COLUMNS})
+  # BAR=$(printf '=%.0s' {1..$TERMWIDTH})
+}
+
+autoload -U add-zsh-hook
+add-zsh-hook precmd  _command_time_precmd
+add-zsh-hook preexec _command_time_preexec
+add-zsh-hook precmd  theme_precmd
+# add-zsh-hook preexec theme_preexec
+
+# Need this so the prompt will work.
+setopt prompt_subst
+
 #${(l:$COLUMNS::=:):-} #print ======
-PROMPT=$'╭─%F{161%}%n%{$reset_color%} at %F{166%}%m%{$reset_color%} in $(get_dir) $(check_git_prompt_info)
+PROMPT=$'╭─%F{161%}%n%{$reset_color%} at %F{166%}%m%{$reset_color%} in $(get_dir) ${(l:$((COLUMNS - promptsize - pwdsize))::─:):-} %{$STATUS_COLOR%}%?%{$reset_color%} %{$fg[cyan]%}($ZSH_COMMAND_TIME)%{$reset_color%} %F{242%}< %*%{$reset_color%}
 %{$reset_color%}╰─'$LAMBDA' %{$reset_color%}'
+# PROMPT=$'%F{161%}${(l:$COLUMNS::=:):-}%{$reset_color%}'
+# PROMPT=$'%F{161%}$BAR%{$reset_color%}'
+# PROMPT=$'%F{161%}$TERMWIDTH%{$reset_color%}'
 #RPROMPT='$(get_right_prompt)'
 #PS1='hehe'
-RPROMPT=$'%{$STATUS_COLOR%}%?%{$reset_color%} %{$fg[cyan]%}($ZSH_COMMAND_TIME)%{$reset_color%} %F{242%}< %*%{$reset_color%}'
+RPROMPT='$(check_git_prompt_info)'
 
 # Format for git_prompt_info()
 ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg[blue]%}"
@@ -82,5 +119,5 @@ ZSH_THEME_GIT_PROMPT_SHA_AFTER="%{$fg_bold[white]%}]"
 
 ZSH_THEME_GIT_PROMPT_NOCACHE=1
 
-precmd_functions+=(_command_time_precmd)
-preexec_functions+=(_command_time_preexec)
+# precmd_functions+=(_command_time_precmd)
+# preexec_functions+=(_command_time_preexec)
